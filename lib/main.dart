@@ -10,7 +10,99 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: EquipamentosPage(),
+      home: HomePage(),
+    );
+  }
+}
+
+class HomePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Gestão de Equipamentos')),
+      drawer: Drawer(
+        child: ListView(
+          children: [
+            ListTile(
+              title: Text('Cadastro de Equipamentos'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => CadastroEquipamentosPage()),
+                );
+              },
+            ),
+            ListTile(
+              title: Text('Consulta de Equipamentos'),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => EquipamentosPage()),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+      body: Center(child: Text('Bem-vindo à gestão de equipamentos')),
+    );
+  }
+}
+
+class CadastroEquipamentosPage extends StatefulWidget {
+  @override
+  _CadastroEquipamentosPageState createState() =>
+      _CadastroEquipamentosPageState();
+}
+
+class _CadastroEquipamentosPageState extends State<CadastroEquipamentosPage> {
+  final _nomeController = TextEditingController();
+
+  Future<void> cadastrarEquipamento() async {
+    try {
+      final response = await http.post(
+        Uri.parse(
+            'https://app-web-uniara-example-60f73cc06c77.herokuapp.com/equipamentos'),
+        headers: {"Content-Type": "application/json"},
+        body: json.encode({'nome': _nomeController.text}),
+      );
+
+      if (response.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Equipamento cadastrado com sucesso!'),
+        ));
+        _nomeController.clear();
+      } else {
+        throw Exception('Falha ao cadastrar equipamento');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Erro ao cadastrar equipamento'),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Cadastro de Equipamentos')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _nomeController,
+              decoration: InputDecoration(labelText: 'Nome do Equipamento'),
+            ),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: cadastrarEquipamento,
+              child: Text('Cadastrar'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -32,7 +124,8 @@ class _EquipamentosPageState extends State<EquipamentosPage> {
 
   Future<void> fetchEquipamentos() async {
     try {
-      final response = await http.get(Uri.parse('https://app-web-uniara-example-60f73cc06c77.herokuapp.com/equipamentos'));
+      final response = await http.get(Uri.parse(
+          'https://app-web-uniara-example-60f73cc06c77.herokuapp.com/equipamentos'));
 
       if (response.statusCode == 200) {
         setState(() {
@@ -50,19 +143,32 @@ class _EquipamentosPageState extends State<EquipamentosPage> {
     }
   }
 
-  // Função para reservar o equipamento
   Future<void> reservarEquipamento(int equipamentoId) async {
+    final equipamento =
+        equipamentos.firstWhere((e) => e['id'] == equipamentoId);
+
+    if (!equipamento['disponivel']) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Equipamento já reservado!'),
+      ));
+      return;
+    }
+
     try {
       final response = await http.post(
-        Uri.parse('https://app-web-uniara-example-60f73cc06c77.herokuapp.com/equipamentos/$equipamentoId/reservar'),
+        Uri.parse(
+            'https://app-web-uniara-example-60f73cc06c77.herokuapp.com/equipamentos/$equipamentoId/reservar'),
         headers: {"Content-Type": "application/json"},
       );
 
       if (response.statusCode == 200) {
         setState(() {
-          final index = equipamentos.indexWhere((e) => e['id'] == equipamentoId);
+          final index =
+              equipamentos.indexWhere((e) => e['id'] == equipamentoId);
           if (index != -1) {
-            equipamentos[index]['disponivel'] = false; // Atualize o estado localmente
+            equipamentos[index]['disponivel'] = false;
+            equipamentos[index]['dataRetirada'] =
+                DateTime.now().subtract(Duration(hours: 3)).toString();
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -83,15 +189,20 @@ class _EquipamentosPageState extends State<EquipamentosPage> {
   Future<void> liberarEquipamento(int equipamentoId) async {
     try {
       final response = await http.post(
-        Uri.parse('https://app-web-uniara-example-60f73cc06c77.herokuapp.com/equipamentos/$equipamentoId/liberar'),
+        Uri.parse(
+            'https://app-web-uniara-example-60f73cc06c77.herokuapp.com/equipamentos/$equipamentoId/liberar'),
         headers: {"Content-Type": "application/json"},
       );
 
       if (response.statusCode == 200) {
         setState(() {
-          final index = equipamentos.indexWhere((e) => e['id'] == equipamentoId);
+          final index =
+              equipamentos.indexWhere((e) => e['id'] == equipamentoId);
           if (index != -1) {
-            equipamentos[index]['disponivel'] = true; // Atualiza o estado para liberado
+            equipamentos[index]['disponivel'] =
+                true; // Atualiza o estado para liberado
+            equipamentos[index]['dataRetirada'] =
+                null; // Limpa a data de retirada, já que foi liberado
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -111,7 +222,7 @@ class _EquipamentosPageState extends State<EquipamentosPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Equipamentos')),
+      appBar: AppBar(title: Text('Consulta de Equipamentos')),
       body: isLoading
           ? Center(child: CircularProgressIndicator())
           : ListView.builder(
@@ -120,7 +231,16 @@ class _EquipamentosPageState extends State<EquipamentosPage> {
                 final equipamento = equipamentos[index];
                 return ListTile(
                   title: Text(equipamento['nome']),
-                  subtitle: Text(equipamento['disponivel'] ? 'Disponível' : 'Reservado'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(equipamento['disponivel']
+                          ? 'Disponível'
+                          : 'Reservado'),
+                      if (equipamento['dataRetirada'] != null)
+                        Text('Retirado em: ${equipamento['dataRetirada']}'),
+                    ],
+                  ),
                   trailing: equipamento['disponivel']
                       ? ElevatedButton(
                           onPressed: () {
