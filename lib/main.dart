@@ -185,7 +185,6 @@ class _EquipamentosPageState extends State<EquipamentosPage> {
     }
   }
 
-  // Função para liberar o equipamento reservado
   Future<void> liberarEquipamento(int equipamentoId) async {
     try {
       final response = await http.post(
@@ -199,10 +198,8 @@ class _EquipamentosPageState extends State<EquipamentosPage> {
           final index =
               equipamentos.indexWhere((e) => e['id'] == equipamentoId);
           if (index != -1) {
-            equipamentos[index]['disponivel'] =
-                true; // Atualiza o estado para liberado
-            equipamentos[index]['dataRetirada'] =
-                null; // Limpa a data de retirada, já que foi liberado
+            equipamentos[index]['disponivel'] = true;
+            equipamentos[index]['dataRetirada'] = null;
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
